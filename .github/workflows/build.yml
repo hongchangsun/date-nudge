@@ -20,7 +20,9 @@ jobs:
         uses: NuGet/setup-nuget@v2
 
       - name: Restore NuGet packages
-        run: nuget restore ScannerAssistant.csproj
+        run: |
+          nuget restore ScannerAssistant.csproj
+          nuget restore UpdateHelper/UpdateHelper.csproj
 
       - name: Build Project (Release)
         run: |

@@ -25,6 +25,7 @@ jobs:
       - name: Build Project (Release)
         run: |
           msbuild ScannerAssistant.csproj /p:Configuration=Release /p:Platform="Any CPU" /v:minimal /t:Rebuild
+          msbuild UpdateHelper/UpdateHelper.csproj /p:Configuration=Release /v:minimal /t:Rebuild
 
       - name: Find and list output files
         run: |
@@ -39,5 +40,6 @@ jobs:
             bin/**/Release/**/日期提醒.exe
             bin/**/Release/**/日期提醒.dll
             bin/**/Release/**/日期提醒.exe.config
+            bin/**/Release/**/UpdateHelper.exe
             bin/**/Release/**/*.dll
           if-no-files-found: error

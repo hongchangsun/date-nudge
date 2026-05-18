@@ -17,7 +17,7 @@ namespace DateReminder
     public class AppConfig
     {
         // 版本信息
-        public string AppVersion { get; set; } = "1.4.0";
+        public string AppVersion { get; set; } = "1.4.2";
 
         // 窗口位置
         public int MainWindowX { get; set; } = -1;
@@ -75,7 +75,7 @@ namespace DateReminder
 
                     // 如果运行版本比配置文件版本高，自动升级配置文件的版本号
                     // 自动升级：如果代码默认版本比配置文件高，覆盖配置文件的版本号
-                    var codeVersion = "1.4.0";
+                    var codeVersion = "1.4.2";
                     if (!string.IsNullOrEmpty(codeVersion) && codeVersion != (cfg.AppVersion ?? ""))
                     {
                         cfg.AppVersion = codeVersion;

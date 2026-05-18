@@ -16,9 +16,9 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build Solution (Release)
+      - name: Build Project (Release)
         run: |
-          msbuild "日期提醒正式版.sln" /p:Configuration=Release /p:Platform="Any CPU" /v:minimal /t:Rebuild
+          msbuild ScannerAssistant.csproj /p:Configuration=Release /p:Platform="Any CPU" /v:minimal /t:Rebuild
 
       - name: Find and list output files
         run: |
@@ -30,7 +30,8 @@ jobs:
         with:
           name: DateNudge-EXE
           path: |
-            **/bin/Release/*.exe
-            **/bin/Release/*.dll
-            **/bin/Release/*.config
+            **/bin/Release/**/日期提醒.exe
+            **/bin/Release/**/日期提醒.dll
+            **/bin/Release/**/日期提醒.exe.config
+            **/bin/Release/**/*.dll
           if-no-files-found: error

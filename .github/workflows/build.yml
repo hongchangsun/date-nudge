@@ -1,0 +1,36 @@
+name: Build DateNudge WinForms EXE
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Solution (Release)
+        run: |
+          msbuild "日期提醒正式版.sln" /p:Configuration=Release /p:Platform="Any CPU" /v:minimal /t:Rebuild
+
+      - name: Find and list output files
+        run: |
+          Get-ChildItem -Path . -Recurse -Filter "*.exe" | Select-Object FullName
+          Get-ChildItem -Path . -Recurse -Filter "*.dll" | Select-Object FullName
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DateNudge-EXE
+          path: |
+            **/bin/Release/*.exe
+            **/bin/Release/*.dll
+            **/bin/Release/*.config
+          if-no-files-found: error

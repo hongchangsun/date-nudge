@@ -36,8 +36,8 @@ jobs:
         with:
           name: DateNudge-EXE
           path: |
-            **/bin/Release/**/日期提醒.exe
-            **/bin/Release/**/日期提醒.dll
-            **/bin/Release/**/日期提醒.exe.config
-            **/bin/Release/**/*.dll
+            bin/**/Release/**/日期提醒.exe
+            bin/**/Release/**/日期提醒.dll
+            bin/**/Release/**/日期提醒.exe.config
+            bin/**/Release/**/*.dll
           if-no-files-found: error

@@ -1,0 +1,7 @@
+# .gitignore - 忽略编译中间产物
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log

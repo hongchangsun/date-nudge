@@ -1,0 +1,91 @@
+# ========== Gitee Go 流水线 ==========
+# Gitee Go 是 Gitee 的 CI/CD 服务，免费且国内访问快
+# 官方文档: https://gitee.com/help/articles/4570
+
+# 触发条件：master 分支有 push 时触发
+workflow:
+  trigger:
+    stages:
+      - push
+    push:
+      branches:
+        - master
+
+  # 定义流水线中可用的全局变量（所有 stage 共享）
+  variables:
+    BUILD_DIR: '日期提醒正式版'
+    OUTPUT_NAME: '日期提醒'
+
+  stages:
+    # -------- 阶段1：还原 .NET 依赖 --------
+    - stage: restore
+      name: restore
+      displayName: 还原 NuGet 依赖
+      runner: windows-latest    # Windows 最新版_runner（带完整 .NET SDK）
+      steps:
+        - name: 还原依赖
+          uses: gitee/actions-git@master
+          with:
+            command: |
+              dotnet restore "${{ env.BUILD_DIR }}/ScannerAssistant.csproj"
+            description: '还原 NuGet 包'
+
+    # -------- 阶段2：编译 Release --------
+    - stage: build
+      name: build
+      displayName: 编译 Release 版本
+      runner: windows-latest
+      depends:
+        - restore
+      steps:
+        - name: 编译项目
+          uses: gitee/actions-git@master
+          with:
+            command: |
+              dotnet build "${{ env.BUILD_DIR }}/ScannerAssistant.csproj" ^
+                --configuration Release ^
+                --no-restore ^
+                -p:AssemblyName=日期提醒 ^
+                -p:ApplicationIcon="${{ env.BUILD_DIR }}/app.ico"
+            description: 'Release 编译'
+
+    # -------- 阶段3：打包发布 --------
+    - stage: package
+      name: package
+      displayName: 打包 Release 文件
+      runner: windows-latest
+      depends:
+        - build
+      steps:
+        - name: 创建发布包
+          uses: gitee/actions-git@master
+          with:
+            command: |
+              # 创建发布目录
+              mkdir -p release
+              
+              # 复制 exe 和依赖
+              cp "${{ env.BUILD_DIR }}/bin/Release/日期提醒.exe" release/
+              cp "${{ env.BUILD_DIR }}/bin/Release/"*.dll release/ 2>nul
+              cp "${{ env.BUILD_DIR }}/bin/Release/"*.config release/ 2>nul
+              
+              # 如果有 app.ico 也复制
+              cp "${{ env.BUILD_DIR }}/app.ico" release/ 2>nul
+              
+              # 打包
+              cd release
+              powershell -Command "Compress-Archive -Path '*' -DestinationPath '../日期提醒_v1.4.0_Release.zip' -Force"
+            description: '打包 zip'
+
+    # -------- 阶段4：下载 artifact --------
+    - stage: download
+      name: download
+      displayName: 输出构建产物
+      runner: windows-latest
+      depends:
+        - package
+      artifacts:
+        name: release-package
+        paths:
+          - '日期提醒_v1.4.0_Release.zip'
+        expire_in: 30 days

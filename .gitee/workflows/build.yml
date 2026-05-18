@@ -1,75 +1,39 @@
-# ========== Gitee Go 流水线 ==========
-# Gitee Go CI/CD 自动编译
-# 使用方式：在 Gitee 仓库 →流水线→新建流水线→选择此文件
+name: 构建发布
 
-name: 日期提醒 构建流水线
-
+trigger: "^[Vv]?\\d+(\\.\\d+)*(-.*)?$"   # 只在 tag 时触发
 on:
   push:
-    branches:
-      - master
-  release:
     tags:
-      - 'v*'
+      - '*'
 
 env:
-  BUILD_DIR: '日期提醒正式版'
-  OUTPUT_NAME: '日期提醒'
   VERSION: '1.4.0'
 
-jobs:
-  restore:
-    name: 还原依赖
-    runs-on: windows-latest
-    steps:
-      - name: 迁出代码
-        uses: gitee-actions/checkout@v2
+stages:
+  - stage: build
+    name: 编译
+    runs-on:
+      - windows-latest
+    script:
+      - dotnet restore "$BUILD_DIR/ScannerAssistant.csproj"
+      - dotnet build "$BUILD_DIR/ScannerAssistant.csproj" --configuration Release --no-restore
+      - mkdir -p release
+      - copy "$BUILD_DIR\bin\Release\日期提醒.exe" release\
+      - copy "$BUILD_DIR\bin\Release\"*.dll release\ 2>nul
+      - copy "$BUILD_DIR\bin\Release\"*.config release\ 2>nul
+      - copy "$BUILD_DIR\app.ico" release\ 2>nul
+      - cd release && powershell -Command "Compress-Archive -Path '*' -DestinationPath '../日期提醒_v${{env.VERSION}}_Release.zip' -Force"
 
-      - name: 还原 NuGet 包
-        run: |
-          dotnet restore "${{ env.BUILD_DIR }}/ScannerAssistant.csproj"
-        shell: cmd
-
-  build:
-    name: 编译 Release
-    runs-on: windows-latest
-    needs: restore
-    steps:
-      - name: 迁出代码
-        uses: gitee-actions/checkout@v2
-
-      - name: 编译项目
-        run: |
-          dotnet build "${{ env.BUILD_DIR }}/ScannerAssistant.csproj" ^
-            --configuration Release ^
-            --no-restore
-        shell: cmd
-
-      - name: 列出构建产物
-        run: |
-          dir "${{ env.BUILD_DIR }}\bin\Release\"
-        shell: cmd
-
-  package:
-    name: 打包发布
-    runs-on: windows-latest
-    needs: build
-    steps:
-      - name: 迁出代码
-        uses: gitee-actions/checkout@v2
-
-      - name: 打包 ZIP
-        run: |
-          mkdir -p release
-          copy "${{ env.BUILD_DIR }}\bin\Release\日期提醒.exe" release\
-          copy "${{ env.BUILD_DIR }}\bin\Release\"*.dll release\ 2>nul
-          copy "${{ env.BUILD_DIR }}\bin\Release\"*.config release\ 2>nul
-          copy "${{ env.BUILD_DIR }}\app.ico" release\ 2>nul
-          cd release && powershell -Command "Compress-Archive -Path '*' -DestinationPath '../日期提醒_v${{ env.VERSION }}_Release.zip' -Force"
-        shell: cmd
-
-      - name: 上传构建产物
-        uses: gitee-actions/upload@v1
-        with:
-          name: release-package
-          path: 日期提醒_v${{ env.VERSION }}_Release.zip
+  - stage: upload
+    name: 上传产物
+    runs-on:
+      - windows-latest
+    needs: ['build']
+    script:
+      - gitee-actions/upload@v1 --name release-package --path '日期提醒_v${{env.VERSION}}_Release.zip'
+    artifacts:
+      - name: release-package
+        paths:
+          - '日期提醒_v${{env.VERSION}}_Release.zip'
+        type: zip
+        expire_in: 30 days

@@ -37,12 +37,14 @@ namespace DateReminder
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                 ServicePointManager.Expect100Continue = false;
 
-                using var client = new WebClient();
-                client.Encoding = System.Text.Encoding.UTF8;
-                client.Headers.Add("User-Agent", "DateReminder/" + VERSION);
-                var json = await client.DownloadStringTaskAsync(VersionUrl + "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-                Debug.WriteLine("[UpdateChecker] " + json);
-                return JsonSerializer.Deserialize<UpdateInfo>(json);
+                using (var client = new WebClient())
+                {
+                    client.Encoding = System.Text.Encoding.UTF8;
+                    client.Headers.Add("User-Agent", "DateReminder/" + VERSION);
+                    var json = await client.DownloadStringTaskAsync(VersionUrl + "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    Debug.WriteLine("[UpdateChecker] " + json);
+                    return JsonSerializer.Deserialize<UpdateInfo>(json);
+                }
             }
             catch (Exception ex)
             {
@@ -122,7 +124,7 @@ namespace DateReminder
     {
         public string Version { get; set; } = "";
         public int VersionCode { get; set; }
-        public string PackageUrl { get; set; } = ""
+        public string PackageUrl { get; set; } = "";
         public long PackageSize { get; set; }
         public string ReleaseNotes { get; set; } = "";
     }

@@ -533,7 +533,7 @@ namespace DateReminder
 
             var lblVersion = new Label
             {
-                Text = $"日期提醒 v{_cfg.AppVersion}",
+                Text = $"日期提醒 v{UpdateChecker.GetCurrentVersion()}",
                 Location = new Point(15, 25),
                 AutoSize = true,
                 ForeColor = TEXT,
@@ -547,7 +547,8 @@ namespace DateReminder
             {
                 btnCheckUpdate.Enabled = false;
                 btnCheckUpdate.Text = "检查中...";
-                var info = await UpdateChecker.CheckUpdateAsync(_cfg.AppVersion);
+                var currentVer = UpdateChecker.GetCurrentVersion();
+                var info = await UpdateChecker.CheckUpdateAsync(currentVer);
                 btnCheckUpdate.Enabled = true;
                 btnCheckUpdate.Text = "🔄 检查更新";
 
@@ -557,7 +558,7 @@ namespace DateReminder
                     return;
                 }
 
-                if (UpdateChecker.NeedUpdate(_cfg.AppVersion, info.Version))
+                if (UpdateChecker.NeedUpdate(currentVer, info.Version))
                 {
                     var result = MessageBox.Show(
                         $"发现新版本 {info.Version}\n\n" +

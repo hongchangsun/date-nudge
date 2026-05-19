@@ -15,8 +15,6 @@ jobs:
 
       - name: Setup .NET Framework
         uses: microsoft/setup-msbuild@v2
-        with:
-          msbuild-architecture: x64
 
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
@@ -25,7 +23,7 @@ jobs:
         run: nuget restore ScannerAssistant.csproj
 
       - name: Build main project
-        run: msbuild ScannerAssistant.csproj /p:Configuration=Release /p:Platform="Any CPU" /v:normal /t:Rebuild /logger:"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\AmicrosoftBuildFileLogger,Microsoft.Build.Engine;LogOutput=build.log;Verbosity=normal"
+        run: msbuild ScannerAssistant.csproj /p:Configuration=Release /p:Platform="Any CPU" /v:minimal /t:Rebuild
 
       - name: Build UpdateHelper
         run: msbuild UpdateHelper/UpdateHelper.csproj /p:Configuration=Release /v:minimal /t:Rebuild

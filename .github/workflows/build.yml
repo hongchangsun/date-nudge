@@ -29,16 +29,28 @@ jobs:
           msbuild ScannerAssistant.csproj /p:Configuration=Release /p:Platform="Any CPU" /v:minimal /t:Rebuild
           msbuild UpdateHelper/UpdateHelper.csproj /p:Configuration=Release /v:minimal /t:Rebuild
 
+      - name: Debug: Find all exe files
+        shell: pwsh
+        run: |
+          Write-Host "=== All .exe in repo ==="
+          Get-ChildItem -Path . -Recurse -Filter "*.exe" | ForEach-Object { Write-Host $_.FullName }
+          Write-Host "=== bin/ contents ==="
+          if (Test-Path "bin") { Get-ChildItem -Path bin -Recurse | ForEach-Object { Write-Host $_.FullName } } else { Write-Host "bin dir NOT FOUND" }
+
       - name: Stage output files (fix Chinese filename)
         shell: pwsh
         run: |
           $outDir = "staging"
           New-Item -ItemType Directory -Path $outDir -Force | Out-Null
           $srcDir = "bin\Release\net48"
-          Copy-Item "$srcDir\*.exe" $outDir -Force
-          Copy-Item "$srcDir\*.dll" $outDir -Force
-          Copy-Item "$srcDir\*.config" $outDir -Force
-          Get-ChildItem $outDir | Select-Object Name, Length
+          Write-Host "Source dir exists: $(Test-Path $srcDir)"
+          if (Test-Path $srcDir) {
+            Copy-Item "$srcDir\*" $outDir -Force
+            Get-ChildItem $outDir | ForEach-Object { Write-Host "Staged: $($_.Name) ($($_.Length))" }
+          } else {
+            Write-Host "ERROR: Source dir not found, searching..."
+            Get-ChildItem -Path . -Recurse -Include "*.exe","*.dll" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
+          }
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4

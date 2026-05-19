@@ -9,15 +9,17 @@
     <AssemblyName>日期提醒</AssemblyName>
     <StartupObject>DateReminder.Program</StartupObject>
     <LangVersion>latest</LangVersion>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <Version>1.6.0</Version>
+    <AssemblyVersion>1.6.0</AssemblyVersion>
+    <FileVersion>1.6.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="8.0.0" />
     <Reference Include="System.Management" />
     <Reference Include="System.Net.Http" />
-
   </ItemGroup>
 
 </Project>

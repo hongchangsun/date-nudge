@@ -376,7 +376,7 @@ namespace DateReminder
         {
             _cfg = AppConfig.Load();
             InitializeComponent();
-            this.Text = "日期提醒 v1.4.0";
+            this.Text = $"日期提醒 v{UpdateChecker.GetCurrentVersion()}";
             InitTrayIcon();
             _floatingCounter = new FloatingCounter(this);
             _floatingCounter.PositionChanged += () => { SaveWindowPositions(); _cfg.Save(); };
@@ -455,7 +455,8 @@ namespace DateReminder
         /// </summary>
         private async System.Threading.Tasks.Task CheckForUpdateAsync(bool showNoUpdate)
         {
-            var info = await UpdateChecker.CheckUpdateAsync(_cfg.AppVersion);
+            var currentVer = UpdateChecker.GetCurrentVersion();
+            var info = await UpdateChecker.CheckUpdateAsync(currentVer);
             if (info == null)
             {
                 if (showNoUpdate)
@@ -463,7 +464,7 @@ namespace DateReminder
                 return;
             }
 
-            if (UpdateChecker.NeedUpdate(_cfg.AppVersion, info.Version))
+            if (UpdateChecker.NeedUpdate(currentVer, info.Version))
             {
                 var result = MessageBox.Show(
                     $"发现新版本 {info.Version}\n\n" +

@@ -29,19 +29,22 @@ jobs:
           msbuild ScannerAssistant.csproj /p:Configuration=Release /p:Platform="Any CPU" /v:minimal /t:Rebuild
           msbuild UpdateHelper/UpdateHelper.csproj /p:Configuration=Release /v:minimal /t:Rebuild
 
-      - name: Find and list output files
+      - name: Stage output files (fix Chinese filename)
+        shell: pwsh
         run: |
-          Get-ChildItem -Path . -Recurse -Filter "*.exe" | Select-Object FullName
-          Get-ChildItem -Path . -Recurse -Filter "*.dll" | Select-Object FullName
+          $staging = Join-Path $env:GITHUB_WORKSPACE "staging"
+          New-Item -ItemType Directory -Path $staging -Force
+          # Copy all exe and dll from Release output (PowerShell handles Chinese filenames natively)
+          Get-ChildItem -Path "bin\Release\net48" -File | ForEach-Object {
+            Copy-Item $_.FullName -Destination $staging
+            Write-Host "Staged: $($_.Name) ($([math]::Round($_.Length/1KB, 1)) KB)"
+          }
+          Write-Host "Staged files:"
+          Get-ChildItem -Path $staging | Select-Object Name, Length
 
-      - name: Upload EXE artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: DateNudge-EXE
-          path: |
-            bin/**/Release/**/日期提醒.exe
-            bin/**/Release/**/日期提醒.dll
-            bin/**/Release/**/日期提醒.exe.config
-            bin/**/Release/**/UpdateHelper.exe
-            bin/**/Release/**/*.dll
+          path: staging\*
           if-no-files-found: error

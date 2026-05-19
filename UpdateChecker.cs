@@ -1,96 +1,66 @@
-using System.Drawing;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Text.Json;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace DateReminder
 {
     /// <summary>
-    /// 在线更新检查器
-    /// 统一版本号来源：全部从 Assembly FileVersion 读取，唯一真相源
+    /// 在线更新检查器 - 极简版
+    /// 版本号硬编码在 VERSION 常量中，不依赖 Assembly
     /// </summary>
     public static class UpdateChecker
     {
+        // ★ 唯一版本号定义 - 每次发版改这里
+        public const string VERSION = "1.6.0";
+
         private const string VersionUrl = "https://myapp-1349312442.cos.ap-beijing.myqcloud.com/win/version.json";
-        private const int MaxRetries = 2;
 
         /// <summary>
-        /// 获取当前程序版本号（从 Assembly FileVersion 读取，唯一真相源）
-        /// 所有显示版本号的地方都必须调用此方法
+        /// 获取当前版本号
         /// </summary>
         public static string GetCurrentVersion()
         {
+            return VERSION;
+        }
+
+        /// <summary>
+        /// 检查更新
+        /// </summary>
+        public static async Task<UpdateInfo?> CheckUpdateAsync()
+        {
             try
             {
-                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-                var fvi = FileVersionInfo.GetVersionInfo(assembly.Location);
-                return fvi.FileVersion ?? "1.0.0";
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                ServicePointManager.Expect100Continue = false;
+
+                using var client = new WebClient();
+                client.Encoding = System.Text.Encoding.UTF8;
+                client.Headers.Add("User-Agent", "DateReminder/" + VERSION);
+                var json = await client.DownloadStringTaskAsync(VersionUrl + "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                Debug.WriteLine("[UpdateChecker] " + json);
+                return JsonSerializer.Deserialize<UpdateInfo>(json);
             }
-            catch
+            catch (Exception ex)
             {
-                return "1.0.0";
+                Debug.WriteLine("[UpdateChecker] 失败: " + ex.Message);
+                return null;
             }
         }
 
         /// <summary>
-        /// 检查更新（带重试机制）
-        /// </summary>
-        public static async Task<UpdateInfo?> CheckUpdateAsync(string currentVersion)
-        {
-            for (int attempt = 0; attempt <= MaxRetries; attempt++)
-            {
-                try
-                {
-                    if (attempt > 0)
-                        await Task.Delay(1000 * attempt);
-
-                    // 兼容 .NET Framework 4.8 的 TLS 设置
-                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11;
-                    ServicePointManager.Expect100Continue = false;
-                    
-                    // 使用 HttpClient 替代 WebClient（更可靠的 HTTPS 支持）
-                    using (var handler = new System.Net.Http.HttpClientHandler())
-                    {
-                        handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
-                        using (var httpClient = new System.Net.Http.HttpClient(handler))
-                        {
-                            httpClient.Timeout = TimeSpan.FromSeconds(15);
-                            httpClient.DefaultRequestHeaders.Add("User-Agent", "DateReminder/" + currentVersion);
-                            var response = await httpClient.GetAsync(VersionUrl + "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-                            response.EnsureSuccessStatusCode();
-                            var json = await response.Content.ReadAsStringAsync();
-                            Debug.WriteLine($"[UpdateChecker] 获取到版本信息: {json}");
-                            return JsonSerializer.Deserialize<UpdateInfo>(json);
-                        }
-                    }
-                }
-                catch (Exception ex) when (attempt < MaxRetries)
-                {
-                    Debug.WriteLine($"[UpdateChecker] 检查更新第{attempt + 1}次失败: {ex.Message}");
-                }
-                catch
-                {
-                    break;
-                }
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// 对比版本号，返回是否需要更新（语义化比较）
+        /// 对比版本号
         /// </summary>
         public static bool NeedUpdate(string currentVersion, string latestVersion)
         {
             try
             {
-                var current = ParseVersion(currentVersion);
-                var latest = ParseVersion(latestVersion);
-                return latest > current;
+                var cur = ParseVersion(currentVersion);
+                var lat = ParseVersion(latestVersion);
+                return lat > cur;
             }
             catch
             {
@@ -98,31 +68,21 @@ namespace DateReminder
             }
         }
 
-        /// <summary>
-        /// 解析版本号字符串为 Version 对象
-        /// 支持 "1.2.3" 和 "1.2" 格式
-        /// </summary>
         private static Version ParseVersion(string v)
         {
-            if (string.IsNullOrWhiteSpace(v))
-                return new Version(0, 0, 0);
-
+            if (string.IsNullOrWhiteSpace(v)) return new Version(0, 0, 0);
             v = v.Trim().TrimStart('v');
-            var parts = v.Split('.');
-            int major = parts.Length > 0 ? int.Parse(parts[0]) : 0;
-            int minor = parts.Length > 1 ? int.Parse(parts[1]) : 0;
-            int build = parts.Length > 2 ? int.Parse(parts[2]) : 0;
-            return new Version(major, minor, build);
+            return new Version(v);
         }
 
         /// <summary>
-        /// 执行完整更新流程：下载 → 调用 UpdateHelper 替换 → 退出当前程序
+        /// 执行更新
         /// </summary>
         public static void PerformUpdate(UpdateInfo info, string appDir)
         {
             string zipPath = Path.Combine(Path.GetTempPath(), $"date_reminder_update_{DateTime.Now:yyyyMMddHHmmss}.zip");
 
-            using (var form = new DownloadForm(info.PackageUrl ?? "", zipPath, info.PackageSize))
+            using (var form = new DownloadForm(info.PackageUrl ?? "", zipPath))
             {
                 if (form.ShowDialog() != DialogResult.OK)
                 {
@@ -131,22 +91,16 @@ namespace DateReminder
                 }
             }
 
-            // 验证下载文件完整性
             if (!File.Exists(zipPath) || new FileInfo(zipPath).Length == 0)
             {
                 MessageBox.Show("下载文件不完整，请重试。", "更新失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            // 启动 UpdateHelper 执行替换
             string helperPath = Path.Combine(appDir, "UpdateHelper.exe");
             if (!File.Exists(helperPath))
             {
-                MessageBox.Show(
-                    "找不到 UpdateHelper.exe，无法自动更新。\n\n请手动下载新版本。",
-                    "更新失败",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                MessageBox.Show("找不到 UpdateHelper.exe，无法自动更新。\n\n请手动下载新版本。", "更新失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -162,42 +116,35 @@ namespace DateReminder
     }
 
     /// <summary>
-    /// 版本信息（与服务器 version.json 格式对应）
+    /// 版本信息
     /// </summary>
     public class UpdateInfo
     {
         public string Version { get; set; } = "";
         public int VersionCode { get; set; }
-        public string UpdateLog { get; set; } = "";
-        public string PackageUrl { get; set; } = "";
+        public string PackageUrl { get; set; } = ""
         public long PackageSize { get; set; }
-        public string PublishTime { get; set; } = "";
+        public string ReleaseNotes { get; set; } = "";
     }
 
     /// <summary>
-    /// 更新下载进度窗口
+    /// 下载进度窗口
     /// </summary>
     public class DownloadForm : Form
     {
         private readonly string _url;
         private readonly string _destPath;
-        private readonly long _expectedSize;
         private readonly ProgressBar _progress;
         private readonly Label _label;
-        private readonly Label _speedLabel;
         private readonly WebClient _client;
-        private bool _success = false;
-        private DateTime _downloadStart;
-        private long _lastBytes = 0;
 
-        public DownloadForm(string url, string destPath, long expectedSize = 0)
+        public DownloadForm(string url, string destPath)
         {
             _url = url;
             _destPath = destPath;
-            _expectedSize = expectedSize;
 
             Text = "正在下载更新";
-            Size = new System.Drawing.Size(420, 180);
+            Size = new System.Drawing.Size(400, 150);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
@@ -207,99 +154,71 @@ namespace DateReminder
             _label = new Label
             {
                 Text = "正在连接服务器...",
-                Location = new System.Drawing.Point(20, 18),
-                Size = new System.Drawing.Size(380, 22),
-                Font = new Font("Microsoft YaHei", 9f)
+                Location = new System.Drawing.Point(20, 15),
+                Size = new System.Drawing.Size(350, 22)
             };
             Controls.Add(_label);
 
             _progress = new ProgressBar
             {
-                Location = new System.Drawing.Point(20, 48),
-                Size = new System.Drawing.Size(380, 28),
-                Style = ProgressBarStyle.Continuous
+                Location = new System.Drawing.Point(20, 45),
+                Size = new System.Drawing.Size(350, 25)
             };
             Controls.Add(_progress);
-
-            _speedLabel = new Label
-            {
-                Text = "",
-                Location = new System.Drawing.Point(20, 82),
-                Size = new System.Drawing.Size(380, 20),
-                ForeColor = System.Drawing.Color.Gray,
-                Font = new Font("Microsoft YaHei", 8f)
-            };
-            Controls.Add(_speedLabel);
 
             var btnCancel = new Button
             {
                 Text = "取消",
                 DialogResult = DialogResult.Cancel,
-                Location = new System.Drawing.Point(160, 115),
-                Size = new System.Drawing.Size(100, 32),
-                Font = new Font("Microsoft YaHei", 9f)
+                Location = new System.Drawing.Point(150, 85),
+                Size = new System.Drawing.Size(100, 30)
             };
-            btnCancel.Click += (s, e) =>
-            {
-                _client?.CancelAsync();
-            };
+            btnCancel.Click += (s, e) => _client?.CancelAsync();
             Controls.Add(btnCancel);
 
             _client = new WebClient();
             _client.DownloadProgressChanged += (s, e) =>
             {
                 _progress.Value = e.ProgressPercentage;
-                double mbReceived = e.BytesReceived / 1024.0 / 1024.0;
-                double mbTotal = e.TotalBytesToReceive / 1024.0 / 1024.0;
-                _label.Text = $"正在下载... {mbReceived:F1} MB / {mbTotal:F1} MB";
-
-                // 计算下载速度
-                var elapsed = (DateTime.Now - _downloadStart).TotalSeconds;
-                if (elapsed > 0)
-                {
-                    double speedMB = (e.BytesReceived - _lastBytes) / 1024.0 / 1024.0 / elapsed;
-                    _speedLabel.Text = speedMB > 1
-                        ? $"下载速度: {speedMB:F1} MB/s"
-                        : $"下载速度: {(e.BytesReceived - _lastBytes) / 1024.0 / elapsed:F0} KB/s";
-                }
-                _lastBytes = e.BytesReceived;
-                _downloadStart = DateTime.Now;
+                double mbR = e.BytesReceived / 1024.0 / 1024.0;
+                double mbT = e.TotalBytesToReceive / 1024.0 / 1024.0;
+                _label.Text = $"正在下载... {mbR:F1} MB / {mbT:F1} MB";
             };
             _client.DownloadFileCompleted += (s, e) =>
             {
-                if (e.Cancelled)
+                if (e.Cancelled || e.Error != null)
                 {
-                    DialogResult = DialogResult.Cancel;
-                }
-                else if (e.Error != null)
-                {
-                    MessageBox.Show($"下载失败：{e.Error.Message}\n\n请检查网络连接后重试。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    if (e.Error != null)
+                        MessageBox.Show("下载失败：" + e.Error.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     DialogResult = DialogResult.Cancel;
                 }
                 else
                 {
-                    _success = true;
                     _label.Text = "下载完成！";
-                    _speedLabel.Text = "";
                     _progress.Value = 100;
-                    // 短暂延迟让用户看到"下载完成"
-                    Task.Delay(500).ContinueWith(_ => Close());
+                    Task.Delay(500).ContinueWith(_ => { try { Close(); } catch { } });
                 }
-                Close();
             };
         }
 
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            _downloadStart = DateTime.Now;
-            _client.DownloadFileAsync(new Uri(_url), _destPath);
+            try
+            {
+                _client.DownloadFileAsync(new Uri(_url), _destPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("无法开始下载：" + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                DialogResult = DialogResult.Cancel;
+                Close();
+            }
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            if (_client.IsBusy)
-                _client.CancelAsync();
+            if (_client.IsBusy) _client.CancelAsync();
             _client.Dispose();
             base.OnFormClosing(e);
         }

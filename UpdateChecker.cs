@@ -48,11 +48,16 @@ namespace DateReminder
                     if (attempt > 0)
                         await Task.Delay(1000 * attempt);
 
-                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                    // 兼容 .NET Framework 4.8 的 TLS 设置
+                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11;
+                    ServicePointManager.Expect100Continue = false;
+                    
                     using var client = new WebClient();
+                    client.Encoding = Encoding.UTF8;
                     client.Headers.Add("User-Agent", "DateReminder/" + currentVersion);
                     // 加时间戳防止 CDN 缓存旧版本信息
                     var json = await client.DownloadStringTaskAsync(VersionUrl + "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    Debug.WriteLine($"[UpdateChecker] 获取到版本信息: {json}");
                     return JsonSerializer.Deserialize<UpdateInfo>(json);
                 }
                 catch (Exception ex) when (attempt < MaxRetries)

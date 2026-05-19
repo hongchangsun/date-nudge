@@ -180,6 +180,9 @@ namespace DateReminder
             btnCancel.Click += (s, e) => _client?.CancelAsync();
             Controls.Add(btnCancel);
 
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            ServicePointManager.Expect100Continue = false;
+
             _client = new WebClient();
             _client.DownloadProgressChanged += (s, e) =>
             {

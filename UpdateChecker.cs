@@ -34,15 +34,31 @@ namespace DateReminder
         {
             try
             {
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                // .NET Framework 4.8: 确保启用 TLS 1.2
+                try { ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; } catch {}
                 ServicePointManager.Expect100Continue = false;
 
                 using (var client = new WebClient())
                 {
                     client.Encoding = System.Text.Encoding.UTF8;
                     client.Headers.Add("User-Agent", "DateReminder/" + VERSION);
-                    var json = await client.DownloadStringTaskAsync(VersionUrl + "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-                    Debug.WriteLine("[UpdateChecker] " + json);
+                    string json = "";
+                    try
+                    {
+                        json = await client.DownloadStringTaskAsync(VersionUrl + "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    }
+                    catch (WebException wex)
+                    {
+                        // 详细日志：区分网络错误、SSL错误、HTTP错误
+                        var resp = wex.Response as HttpWebResponse;
+                        if (resp != null)
+                            Debug.WriteLine("[UpdateChecker] HTTP " + (int)resp.StatusCode + ": " + resp.StatusDescription);
+                        else if (wex.InnerException != null)
+                            Debug.WriteLine("[UpdateChecker] 网络异常: " + wex.InnerException.Message);
+                        Debug.WriteLine("[UpdateChecker] URL: " + VersionUrl);
+                        throw; // rethrow to outer catch
+                    }
+                    Debug.WriteLine("[UpdateChecker] 响应: " + json);
                     return JsonSerializer.Deserialize<UpdateInfo>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 }
             }

@@ -126,6 +126,8 @@ namespace DateReminder
         public int VersionCode { get; set; }
         public string PackageUrl { get; set; } = "";
         public long PackageSize { get; set; }
+        public string UpdateLog { get; set; } = "";
+        public string PublishTime { get; set; } = "";
         public string ReleaseNotes { get; set; } = "";
     }
 

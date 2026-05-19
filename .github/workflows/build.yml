@@ -29,17 +29,27 @@ jobs:
           msbuild ScannerAssistant.csproj /p:Configuration=Release /p:Platform="Any CPU" /v:minimal /t:Rebuild
           msbuild UpdateHelper/UpdateHelper.csproj /p:Configuration=Release /v:minimal /t:Rebuild
 
-      - name: Stage output files (fix Chinese filename)
+      - name: Stage output files
         shell: pwsh
         run: |
           $staging = Join-Path $env:GITHUB_WORKSPACE "staging"
           New-Item -ItemType Directory -Path $staging -Force
-          # Copy all exe and dll from Release output (PowerShell handles Chinese filenames natively)
-          Get-ChildItem -Path "bin\Release\net48" -File | ForEach-Object {
-            Copy-Item $_.FullName -Destination $staging
-            Write-Host "Staged: $($_.Name) ($([math]::Round($_.Length/1KB, 1)) KB)"
+          # Search all possible output paths (Any CPU vs default)
+          $paths = @(
+            "bin\Any CPU\Release\net48",
+            "bin\Release\net48",
+            "UpdateHelper\bin\Release\net48"
+          )
+          foreach ($p in $paths) {
+            $fullPath = Join-Path $env:GITHUB_WORKSPACE $p
+            if (Test-Path $fullPath) {
+              Get-ChildItem -Path $fullPath -File | ForEach-Object {
+                Copy-Item $_.FullName -Destination $staging -Force
+                Write-Host "Staged from $p`: $($_.Name) ($([math]::Round($_.Length/1KB, 1)) KB)"
+              }
+            }
           }
-          Write-Host "Staged files:"
+          Write-Host "Total staged files:"
           Get-ChildItem -Path $staging | Select-Object Name, Length
 
       - name: Upload artifact

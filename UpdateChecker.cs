@@ -15,7 +15,7 @@ namespace DateReminder
     public static class UpdateChecker
     {
         // ★ 唯一版本号定义 - 每次发版改这里
-        public const string VERSION = "1.7.0";
+        public const string VERSION = "1.6.0";
 
         private const string VersionUrl = "https://myapp-1349312442.cos.ap-beijing.myqcloud.com/win/version.json";
 

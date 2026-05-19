@@ -13,48 +13,42 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup MSBuild
+      - name: Setup .NET Framework
         uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
 
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
 
-      - name: Restore NuGet packages
-        run: |
-          nuget restore ScannerAssistant.csproj
-          nuget restore UpdateHelper/UpdateHelper.csproj
+      - name: Restore packages
+        run: nuget restore ScannerAssistant.csproj
 
-      - name: Build Project (Release)
-        run: |
-          msbuild ScannerAssistant.csproj /p:Configuration=Release /p:Platform="Any CPU" /v:minimal /t:Rebuild
-          msbuild UpdateHelper/UpdateHelper.csproj /p:Configuration=Release /v:minimal /t:Rebuild
+      - name: Build main project
+        run: msbuild ScannerAssistant.csproj /p:Configuration=Release /p:Platform="Any CPU" /v:normal /t:Rebuild /logger:"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\AmicrosoftBuildFileLogger,Microsoft.Build.Engine;LogOutput=build.log;Verbosity=normal"
 
-      - name: Debug: Find all exe files
+      - name: Build UpdateHelper
+        run: msbuild UpdateHelper/UpdateHelper.csproj /p:Configuration=Release /v:minimal /t:Rebuild
+
+      - name: Find and stage ALL output files
         shell: pwsh
         run: |
-          Write-Host "=== All .exe in repo ==="
-          Get-ChildItem -Path . -Recurse -Filter "*.exe" | ForEach-Object { Write-Host $_.FullName }
-          Write-Host "=== bin/ contents ==="
-          if (Test-Path "bin") { Get-ChildItem -Path bin -Recurse | ForEach-Object { Write-Host $_.FullName } } else { Write-Host "bin dir NOT FOUND" }
-
-      - name: Stage output files (fix Chinese filename)
-        shell: pwsh
-        run: |
-          $outDir = "staging"
-          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
-          $srcDir = "bin\Release\net48"
-          Write-Host "Source dir exists: $(Test-Path $srcDir)"
-          if (Test-Path $srcDir) {
-            Copy-Item "$srcDir\*" $outDir -Force
-            Get-ChildItem $outDir | ForEach-Object { Write-Host "Staged: $($_.Name) ($($_.Length))" }
-          } else {
-            Write-Host "ERROR: Source dir not found, searching..."
-            Get-ChildItem -Path . -Recurse -Include "*.exe","*.dll" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
+          Write-Host "=== Searching for .exe and .dll ==="
+          $files = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Include *.exe,*.dll -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch "\.nuget|\\node_modules|\\obj" }
+          $files | ForEach-Object { Write-Host "FOUND: $($_.FullName) ($($_.Length) bytes)" }
+          
+          New-Item -ItemType Directory -Path "output" -Force | Out-Null
+          foreach ($f in $files) {
+            Copy-Item $f.FullName "output/" -Force
+            Write-Host "Copied: $($f.Name)"
           }
+          
+          Write-Host "=== Output dir contents ==="
+          Get-ChildItem "output" | ForEach-Object { Write-Host "$($_.Name) ($($_.Length))" }
 
-      - name: Upload EXE artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: DateNudge-EXE
-          path: staging/
-          if-no-files-found: error
+          path: output/
+          retention-days: 7

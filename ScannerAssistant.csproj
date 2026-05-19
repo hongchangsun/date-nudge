@@ -16,6 +16,8 @@
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="8.0.0" />
     <Reference Include="System.Management" />
+    <Reference Include="System.Net.Http" />
+
   </ItemGroup>
 
 </Project>

@@ -29,19 +29,20 @@ jobs:
           msbuild ScannerAssistant.csproj /p:Configuration=Release /p:Platform="Any CPU" /v:minimal /t:Rebuild
           msbuild UpdateHelper/UpdateHelper.csproj /p:Configuration=Release /v:minimal /t:Rebuild
 
-      - name: Find and list output files
+      - name: Stage output files (fix Chinese filename)
+        shell: pwsh
         run: |
-          Get-ChildItem -Path . -Recurse -Filter "*.exe" | Select-Object FullName
-          Get-ChildItem -Path . -Recurse -Filter "*.dll" | Select-Object FullName
+          $outDir = "staging"
+          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+          $srcDir = "bin\Release\net48"
+          Copy-Item "$srcDir\*.exe" $outDir -Force
+          Copy-Item "$srcDir\*.dll" $outDir -Force
+          Copy-Item "$srcDir\*.config" $outDir -Force
+          Get-ChildItem $outDir | Select-Object Name, Length
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
           name: DateNudge-EXE
-          path: |
-            bin/**/Release/**/日期提醒.exe
-            bin/**/Release/**/日期提醒.dll
-            bin/**/Release/**/日期提醒.exe.config
-            bin/**/Release/**/UpdateHelper.exe
-            bin/**/Release/**/*.dll
+          path: staging/
           if-no-files-found: error

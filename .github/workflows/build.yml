@@ -20,7 +20,9 @@ jobs:
         uses: NuGet/setup-nuget@v2
 
       - name: Restore packages
-        run: nuget restore ScannerAssistant.csproj
+        run: |
+          nuget restore ScannerAssistant.csproj
+          nuget restore UpdateHelper/UpdateHelper.csproj
 
       - name: Build main project
         run: msbuild ScannerAssistant.csproj /p:Configuration=Release /p:Platform="Any CPU" /v:minimal /t:Rebuild
@@ -32,7 +34,7 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "=== Searching for .exe and .dll ==="
-          $files = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Include *.exe,*.dll -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch "\.nuget|\\node_modules|\\obj" }
+          $files = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Include *.exe,*.dll -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch "\\\.nuget|\\node_modules|\\obj" }
           $files | ForEach-Object { Write-Host "FOUND: $($_.FullName) ($($_.Length) bytes)" }
           
           New-Item -ItemType Directory -Path "output" -Force | Out-Null

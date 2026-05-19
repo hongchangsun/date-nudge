@@ -1,3 +1,4 @@
+using System.Drawing;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -276,7 +277,7 @@ namespace DateReminder
 
         protected override void OnLoad(EventArgs e)
         {
-            base.OnLoad();
+            base.OnLoad(e);
             _downloadStart = DateTime.Now;
             _client.DownloadFileAsync(new Uri(_url), _destPath);
         }

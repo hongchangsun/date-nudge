@@ -64,7 +64,13 @@ namespace DateReminder
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("[UpdateChecker] 失败: " + ex.Message);
+                // 弹出详细错误信息用于调试
+                var detail = "错误: " + ex.Message;
+                if (ex.InnerException != null)
+                    detail += "\n\n内部异常: " + ex.InnerException.Message;
+                if (ex is System.Net.WebException wex && wex.Response != null)
+                    detail += "\n\nHTTP: " + ((System.Net.HttpWebResponse)wex.Response).StatusCode;
+                MessageBox.Show(detail, "更新检查失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return null;
             }
         }

@@ -43,7 +43,7 @@ namespace DateReminder
                     client.Headers.Add("User-Agent", "DateReminder/" + VERSION);
                     var json = await client.DownloadStringTaskAsync(VersionUrl + "?t=" + DateTimeOffset.UtcNow.ToUnixTimeSeconds());
                     Debug.WriteLine("[UpdateChecker] " + json);
-                    return JsonSerializer.Deserialize<UpdateInfo>(json);
+                    return JsonSerializer.Deserialize<UpdateInfo>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 }
             }
             catch (Exception ex)
